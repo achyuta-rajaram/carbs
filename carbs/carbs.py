@@ -19,6 +19,7 @@ from typing import Union
 from typing import cast
 
 import numpy as np
+import pyro
 import torch
 import wandb
 from attr import evolve
@@ -283,6 +284,7 @@ class CARBS:
         torch.manual_seed(seed)
         np.random.seed(seed)
         random.seed(seed)
+        pyro.set_rng_seed(seed)
 
     def _get_mask_for_invalid_points_in_basic(self, input_in_basic: Tensor) -> Tensor:
         # mypy understand these types but pycharm does not :'(
