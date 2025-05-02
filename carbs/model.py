@@ -71,7 +71,7 @@ class SurrogateModel:
             jitter=1.0e-4,
         ).to(self.params.device)
         model.noise = pyro.nn.PyroSample(pyro.distributions.LogNormal(math.log(1e-2), 0.5))
-
+        model.noise = model.noise.to(self.params.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
         gp.util.train(model, optimizer)
         model.eval()
