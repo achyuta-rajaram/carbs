@@ -139,6 +139,7 @@ class CARBS:
         self._init_wandb()
 
         self.device = "cpu"
+        self.surrogate_model: = None
         if torch.cuda.is_available():
             self.device = f"cuda:{torch.cuda.current_device()}"
 
@@ -179,6 +180,7 @@ class CARBS:
                     suggestion_in_basic.real_number_input
                 )
                 if is_suggestion_remembered:
+                    self.surrogate_model = None
                     self._remember_suggestion(
                         suggestion_in_param,
                         suggestion_in_basic,
@@ -204,6 +206,7 @@ class CARBS:
                 suggestion_in_basic.real_number_input
             )
             if is_suggestion_remembered:
+                self.surrogate_model = None
                 self._remember_suggestion(
                     suggestion_in_param,
                     suggestion_in_basic,
@@ -358,6 +361,7 @@ class CARBS:
     def _add_observation(
         self, observation_in_param: ObservationInParam
     ) -> Optional[ObservationInBasic]:
+        self.surrogate_model = None
         observation_in_basic = self._param_space_obs_to_basic_space_obs(
             observation_in_param
         )
@@ -452,19 +456,28 @@ class CARBS:
 
         return suggestions_in_basic
 
-    @torch.no_grad()
-    def _generate_candidate(self) -> Optional[SuggestionInBasic]:
+    def _get_surrogate_model(self, pareto_groups: Tuple[ObservationGroup, ...]) -> SurrogateModel:
+        if self.surrogate_model is not None:
+            return self.surrogate_model
+
         surrogate_model = self.get_surrogate_model()
         surrogate_model.fit_observations(self.success_observations)
         surrogate_model.fit_suggestions(list(self.outstanding_suggestions.values()))
         surrogate_model.fit_failures(
             self.success_observations, self.failure_observations
         )
+        all_pareto_observations = [obs for group in pareto_groups for obs in group]
+        surrogate_model.fit_pareto_set(all_pareto_observations)
+        self.surrogate_model = surrogate_model
+        return surrogate_model
+
+    @torch.no_grad()
+    def _generate_candidate(self) -> Optional[SuggestionInBasic]:
+
         pareto_groups = self._get_pareto_groups(
             is_conservative=self.config.is_pareto_group_selection_conservative
         )
-        all_pareto_observations = [obs for group in pareto_groups for obs in group]
-        surrogate_model.fit_pareto_set(all_pareto_observations)
+        surrogate_model = self._get_surrogate_model(pareto_groups)
 
         num_samples_to_generate = (
             self.config.num_candidates_for_suggestion_per_dim * self.real_dim
