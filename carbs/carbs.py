@@ -149,7 +149,7 @@ class CARBS:
         )
 
     def suggest(
-        self, suggestion_id: Optional[str] = None, is_suggestion_remembered: bool = True
+        self, suggestion_id: Optional[str] = None, is_suggestion_remembered: bool = False
     ) -> SuggestOutput:
         """
         Return a new suggestion
